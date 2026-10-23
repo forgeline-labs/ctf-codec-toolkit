@@ -5,8 +5,15 @@ from __future__ import annotations
 import base64
 import json
 import os
+import subprocess
+import sys
+import time
 from pathlib import Path
 
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+APP = ROOT / "app"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
@@ -276,6 +283,39 @@ def test_empty_string_argument_reads_available_stdin(run):
     result = run("encode", "base64", "", stdin=b"test")
     assert result.returncode == 0
     assert result.stdout == b"dGVzdA==\n"
+
+
+def test_empty_string_argument_waits_for_late_stdin():
+    # Reading must be deterministic: bytes written after the process starts
+    # still belong to the stream and are read until EOF.
+    process = subprocess.Popen(
+        [sys.executable, str(APP), "encode", "base64", ""],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        time.sleep(0.3)
+        stdout, stderr = process.communicate(b"test", timeout=10)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+    assert process.returncode == 0, stderr
+    assert stdout == b"dGVzdA==\n"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="closing fd 0 is POSIX-specific")
+def test_empty_string_argument_with_closed_stdin():
+    # A closed stdin leaves sys.stdin as None; that must not crash (exit 4).
+    result = subprocess.run(
+        [sys.executable, str(APP), "encode", "base64", ""],
+        capture_output=True,
+        check=False,
+        preexec_fn=lambda: os.close(0),
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == b"\n"
 
 
 def test_fixture_file_with_hex_whitespace(run):

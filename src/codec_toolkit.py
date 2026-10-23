@@ -10,7 +10,6 @@ from __future__ import annotations
 import binascii
 import json
 import os
-import select
 import sys
 from collections.abc import Iterable, Sequence
 
@@ -344,26 +343,32 @@ def read_input(options: Options, positional: str | None) -> bytes:
 
     if positional is not None:
         if positional == "":
-            # An explicitly empty INPUT falls back to stdin, but only when the
-            # stream is already readable.  This keeps AC-21 (empty input)
-            # non-blocking even when an idle inherited pipe is attached.
-            return _read_ready_stdin()
+            # An explicitly empty INPUT defers to stdin, exactly like an
+            # omitted INPUT: read the stream until EOF.  Reading to EOF keeps
+            # the result independent of when a pipe writer happens to deliver
+            # its bytes (AC-21 covers the empty-stream case).
+            return _read_empty_argument_stdin()
         return os.fsencode(positional)
 
     return sys.stdin.buffer.read()
 
 
-def _read_ready_stdin() -> bytes:
-    """Read stdin without blocking when nothing is available yet."""
-    if sys.stdin.isatty():
+def _read_empty_argument_stdin() -> bytes:
+    """Read stdin to EOF for an explicitly empty INPUT argument.
+
+    A terminal is left untouched so the command never waits for interactive
+    input, and a missing stream (for example a closed fd 0) contributes no
+    data.
+    """
+    stream = sys.stdin
+    if stream is None:
         return b""
     try:
-        readable, _, _ = select.select([sys.stdin], [], [], 0)
-    except (OSError, ValueError):
+        if stream.isatty():
+            return b""
+        return stream.buffer.read()
+    except (AttributeError, OSError, ValueError):
         return b""
-    if not readable:
-        return b""
-    return sys.stdin.buffer.read()
 
 
 def decode_utf8(data: bytes, context: str) -> str:
