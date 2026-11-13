@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from conftest import APP
 
 
@@ -235,6 +236,7 @@ def test_version_command(run):
     assert result.stdout == b"ctf-codec-toolkit 0.1.0\n"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows uses app.cmd (CI native launcher smoke)")
 def test_app_is_directly_executable():
     result = subprocess.run(
         [str(APP), "version"], input=b"", capture_output=True, check=False
@@ -246,7 +248,7 @@ def test_app_is_directly_executable():
 
 def test_app_works_from_repository_root():
     result = subprocess.run(
-        [str(APP), "encode", "base64", "test"],
+        [sys.executable, str(APP), "encode", "base64", "test"],
         cwd=Path(__file__).resolve().parents[1],
         input=b"",
         capture_output=True,
