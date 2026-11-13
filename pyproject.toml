@@ -1,0 +1,20 @@
+[project]
+name = "ctf-codec-toolkit"
+version = "0.1.0"
+description = "Deterministic encoding, decoding and frequency analysis for CTF workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Gabriel Pinheiro" }]
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
