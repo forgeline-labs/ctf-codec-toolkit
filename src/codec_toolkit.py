@@ -97,8 +97,7 @@ def base64_decode(data: bytes) -> bytes:
     """Decode Base64 with optional padding.
 
     Padding must be trailing and at most two characters.  Unpadded input is
-    accepted; a single trailing data character (for example "a") is treated as
-    if followed by implicit "===" padding, matching the specification.
+    accepted when it can represent whole bytes (length modulo four is not one).
     """
     try:
         text = data.decode("ascii")
@@ -124,6 +123,9 @@ def base64_decode(data: bytes) -> bytes:
     else:
         data_len = len(text)
         pad_len = (4 - data_len % 4) % 4
+
+    if data_len % 4 == 1:
+        raise CodecError("invalid base64: incomplete six-bit group")
 
     normalized = text if "=" in text else text + "=" * pad_len
     output = bytearray()

@@ -35,8 +35,9 @@ def test_empty_input_every_codec(run):
 
 def test_base64_single_character_no_padding(run):
     result = run("decode", "base64", "a")
-    assert result.returncode == 0
-    assert result.stdout == b"\n"
+    assert result.returncode == 1
+    assert result.stdout == b""
+    assert result.stderr
 
 
 def test_base64_excessive_padding_fails(run):
